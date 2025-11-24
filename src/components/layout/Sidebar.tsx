@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
-import { Box, Settings, MessageSquare, Network, Plus, Trash2, Search, ChevronRight, MoreVertical } from 'lucide-react';
+import { Box, Settings, MessageSquare, Network, Plus, Trash2, Search, ChevronRight, MoreVertical, Pin, PinOff, Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
@@ -10,6 +10,7 @@ import { useSpaces } from '@/components/spaces/SpacesContext';
 import { CreateSpaceModal } from '@/components/spaces/CreateSpaceModal';
 import { CreateChatModal } from '@/components/chat/CreateChatModal';
 import { SettingsDialog } from '@/components/settings/SettingsDialog';
+import { RenameChatModal } from '@/components/chat/RenameChatModal';
 import {
     Select,
     SelectContent,
@@ -35,11 +36,14 @@ export function Sidebar({ className }: SidebarProps) {
         selectSpace,
         activeSpace,
         selectConversation,
-        deleteConversation
+        deleteConversation,
+        togglePin,
+        renameChat
     } = useSpaces();
 
     const [searchQuery, setSearchQuery] = useState('');
     const [chatToDelete, setChatToDelete] = useState<{ spaceId: string, chatId: string } | null>(null);
+    const [chatToRename, setChatToRename] = useState<{ spaceId: string, chatId: string, currentTitle: string } | null>(null);
 
     // Global Search Logic
     const searchResults = React.useMemo(() => {
@@ -162,42 +166,88 @@ export function Sidebar({ className }: SidebarProps) {
                                 </div>
                                 <ScrollArea className="flex-1 px-1">
                                     <div className="space-y-1 p-2">
-                                        {activeSpace.conversations.map((conversation) => (
-                                            <div key={conversation.id} className="group flex items-center gap-1">
-                                                <Button
-                                                    variant={activeSpace.activeConversationId === conversation.id ? "secondary" : "ghost"}
-                                                    className="w-full justify-start font-normal truncate"
-                                                    onClick={() => selectConversation(activeSpace.id, conversation.id)}
-                                                >
-                                                    <MessageSquare className="mr-2 h-4 w-4 shrink-0" />
-                                                    <span className="truncate">{conversation.title}</span>
-                                                </Button>
-                                                <DropdownMenu>
-                                                    <DropdownMenuTrigger asChild>
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
-                                                            onClick={(e) => e.stopPropagation()}
-                                                        >
-                                                            <MoreVertical className="h-4 w-4" />
-                                                        </Button>
-                                                    </DropdownMenuTrigger>
-                                                    <DropdownMenuContent align="end">
-                                                        <DropdownMenuItem
-                                                            className="text-destructive focus:text-destructive"
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                setChatToDelete({ spaceId: activeSpace.id, chatId: conversation.id });
-                                                            }}
-                                                        >
-                                                            <Trash2 className="mr-2 h-4 w-4" />
-                                                            Supprimer
-                                                        </DropdownMenuItem>
-                                                    </DropdownMenuContent>
-                                                </DropdownMenu>
-                                            </div>
-                                        ))}
+                                        {[...activeSpace.conversations]
+                                            .sort((a, b) => {
+                                                if (a.isPinned && !b.isPinned) return -1;
+                                                if (!a.isPinned && b.isPinned) return 1;
+                                                // Sort by last message or creation date
+                                                const lastMsgA = a.messages[a.messages.length - 1]?.timestamp || a.createdAt;
+                                                const lastMsgB = b.messages[b.messages.length - 1]?.timestamp || b.createdAt;
+                                                return new Date(lastMsgB).getTime() - new Date(lastMsgA).getTime();
+                                            })
+                                            .map((conversation) => (
+                                                <div key={conversation.id} className="group flex items-center gap-1">
+                                                    <Button
+                                                        variant={activeSpace.activeConversationId === conversation.id ? "secondary" : "ghost"}
+                                                        className="flex-1 min-w-0 justify-start font-normal"
+                                                        onClick={() => selectConversation(activeSpace.id, conversation.id)}
+                                                    >
+                                                        <div className="flex items-center w-full overflow-hidden">
+                                                            {conversation.isPinned ? (
+                                                                <Pin className="mr-2 h-3 w-3 shrink-0 rotate-45" />
+                                                            ) : (
+                                                                <MessageSquare className="mr-2 h-4 w-4 shrink-0" />
+                                                            )}
+                                                            <span className="truncate">{conversation.title}</span>
+                                                        </div>
+                                                    </Button>
+                                                    <DropdownMenu>
+                                                        <DropdownMenuTrigger asChild>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                className="h-8 w-8 opacity-50 group-hover:opacity-100 transition-opacity"
+                                                                onClick={(e) => e.stopPropagation()}
+                                                            >
+                                                                <MoreVertical className="h-4 w-4" />
+                                                            </Button>
+                                                        </DropdownMenuTrigger>
+                                                        <DropdownMenuContent align="end">
+                                                            <DropdownMenuItem
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    togglePin(activeSpace.id, conversation.id);
+                                                                }}
+                                                            >
+                                                                {conversation.isPinned ? (
+                                                                    <>
+                                                                        <PinOff className="mr-2 h-4 w-4" />
+                                                                        Unpin
+                                                                    </>
+                                                                ) : (
+                                                                    <>
+                                                                        <Pin className="mr-2 h-4 w-4" />
+                                                                        Pin
+                                                                    </>
+                                                                )}
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuItem
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    setChatToRename({
+                                                                        spaceId: activeSpace.id,
+                                                                        chatId: conversation.id,
+                                                                        currentTitle: conversation.title
+                                                                    });
+                                                                }}
+                                                            >
+                                                                <Pencil className="mr-2 h-4 w-4" />
+                                                                Rename
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuItem
+                                                                className="text-destructive focus:text-destructive"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    setChatToDelete({ spaceId: activeSpace.id, chatId: conversation.id });
+                                                                }}
+                                                            >
+                                                                <Trash2 className="mr-2 h-4 w-4" />
+                                                                Delete
+                                                            </DropdownMenuItem>
+                                                        </DropdownMenuContent>
+                                                    </DropdownMenu>
+                                                </div>
+                                            ))}
                                         {activeSpace.conversations.length === 0 && (
                                             <p className="text-sm text-muted-foreground px-4 py-2">
                                                 No conversations yet.
@@ -227,6 +277,17 @@ export function Sidebar({ className }: SidebarProps) {
                 title="Delete Chat"
                 description="Are you sure you want to delete this chat? This action cannot be undone."
             />
+
+            {chatToRename && (
+                <RenameChatModal
+                    isOpen={!!chatToRename}
+                    onClose={() => setChatToRename(null)}
+                    onConfirm={(newTitle) => {
+                        renameChat(chatToRename.spaceId, chatToRename.chatId, newTitle);
+                    }}
+                    currentTitle={chatToRename.currentTitle}
+                />
+            )}
         </div>
     );
 }

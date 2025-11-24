@@ -7,10 +7,11 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Bot, User, Network, Box, MessageSquarePlus, FileText, Upload, MessageSquare } from 'lucide-react';
+import { Bot, User, Network, Box, MessageSquarePlus, FileText, Upload, MessageSquare, Trash2 } from 'lucide-react';
 import { useSpaces } from '@/components/spaces/SpacesContext';
 import { CreateChatModal } from './CreateChatModal';
 import { FileUploadModal } from './FileUploadModal';
+import { DeleteConfirmationDialog } from '@/components/common/DeleteConfirmationDialog';
 import { cn } from '@/lib/utils';
 
 import { useSettings } from '@/components/settings/SettingsContext';
@@ -18,12 +19,13 @@ import { useSettings } from '@/components/settings/SettingsContext';
 export function ChatWindow() {
     const [selectedModel, setSelectedModel] = useState<string>("");
     const [isLoading, setIsLoading] = useState(false);
-    const { activeSpace, activeConversation, addMessageToConversation, updateMessageContent, createConversation, addDocumentToSpace, selectConversation } = useSpaces();
+    const { activeSpace, activeConversation, addMessageToConversation, updateMessageContent, createConversation, addDocumentToSpace, selectConversation, deleteConversation } = useSpaces();
 
     // File Upload State
     const [isDragOver, setIsDragOver] = useState(false);
     const [pendingFiles, setPendingFiles] = useState<File[]>([]);
     const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+    const [chatToDelete, setChatToDelete] = useState<{ spaceId: string, chatId: string } | null>(null);
 
     const { apiKeys, customProviders, availableModels } = useSettings();
 
@@ -181,8 +183,9 @@ export function ChatWindow() {
                 addDocumentToSpace(activeSpace.id, {
                     id: Date.now().toString() + Math.random(),
                     name: file.name,
-                    size: (file.size / 1024).toFixed(1) + ' KB',
-                    uploadDate: new Date()
+                    size: file.size,
+                    type: file.type,
+                    path: ""
                 });
             }
         });
@@ -265,28 +268,47 @@ export function ChatWindow() {
                 </div>
 
                 {recentConversations.length > 0 && (
-                    <div className="w-full max-w-md space-y-4">
-                        <h4 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Recent Discussions</h4>
-                        <div className="grid gap-3">
+                    <div className="w-full max-w-2xl space-y-6">
+                        <div className="flex items-center justify-between">
+                            <h4 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Recent Discussions</h4>
+                            <Button variant="ghost" size="sm" className="text-xs text-muted-foreground hover:text-foreground">
+                                View all
+                            </Button>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {recentConversations.map(conversation => {
                                 const lastMessage = conversation.messages[conversation.messages.length - 1];
                                 return (
                                     <Card
                                         key={conversation.id}
-                                        className="p-4 cursor-pointer hover:bg-muted/50 transition-colors flex items-start gap-3 group"
+                                        className="p-4 cursor-pointer hover:bg-muted/50 hover:shadow-md transition-all duration-200 flex flex-col gap-3 group border-muted-foreground/20 relative"
                                         onClick={() => selectConversation(activeSpace.id, conversation.id)}
                                     >
-                                        <div className="p-2 bg-primary/10 rounded-lg text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
-                                            <MessageSquare className="h-5 w-5" />
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex items-center justify-between mb-1">
-                                                <h5 className="font-medium text-foreground truncate">{conversation.title}</h5>
-                                                <span className="text-xs text-muted-foreground whitespace-nowrap ml-2">
-                                                    {lastMessage?.timestamp.toLocaleDateString()}
-                                                </span>
+                                        <div className="flex items-start justify-between">
+                                            <div className="p-2 bg-primary/10 rounded-lg text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
+                                                <MessageSquare className="h-5 w-5" />
                                             </div>
-                                            <p className="text-sm text-muted-foreground truncate">
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-[10px] font-medium text-muted-foreground bg-muted px-2 py-1 rounded-full group-hover:opacity-0 transition-opacity">
+                                                    {lastMessage?.timestamp.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                                                </span>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-6 w-6 absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setChatToDelete({ spaceId: activeSpace.id, chatId: conversation.id });
+                                                    }}
+                                                >
+                                                    <Trash2 className="h-4 w-4" />
+                                                </Button>
+                                            </div>
+                                        </div>
+
+                                        <div className="space-y-1">
+                                            <h5 className="font-semibold text-foreground truncate pr-6">{conversation.title}</h5>
+                                            <p className="text-xs text-muted-foreground line-clamp-2 h-8">
                                                 {lastMessage?.content || "No messages yet"}
                                             </p>
                                         </div>
@@ -303,6 +325,19 @@ export function ChatWindow() {
                         Start New Chat
                     </Button>
                 } />
+
+                <DeleteConfirmationDialog
+                    open={!!chatToDelete}
+                    onOpenChange={(open) => !open && setChatToDelete(null)}
+                    onConfirm={() => {
+                        if (chatToDelete) {
+                            deleteConversation(chatToDelete.spaceId, chatToDelete.chatId);
+                            setChatToDelete(null);
+                        }
+                    }}
+                    title="Delete Chat"
+                    description="Are you sure you want to delete this chat? This action cannot be undone."
+                />
             </div>
         );
     }

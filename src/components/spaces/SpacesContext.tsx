@@ -23,13 +23,15 @@ export interface Conversation {
     title: string;
     messages: Message[];
     createdAt: Date;
+    isPinned?: boolean;
 }
 
 export interface Document {
     id: string;
     name: string;
-    size: string;
-    uploadDate: Date;
+    size: number;
+    type: string;
+    path: string;
 }
 
 export interface Space {
@@ -56,7 +58,11 @@ interface SpacesContextType {
     updateMessageContent: (spaceId: string, conversationId: string, messageId: string, content: string) => void;
     deleteConversation: (spaceId: string, conversationId: string) => void;
     deleteSpace: (spaceId: string) => void;
+    togglePin: (spaceId: string, conversationId: string) => void;
+    renameChat: (spaceId: string, conversationId: string, newTitle: string) => void;
 }
+
+
 
 const SpacesContext = createContext<SpacesContextType | undefined>(undefined);
 
@@ -252,6 +258,34 @@ export function SpacesProvider({ children }: { children: ReactNode }) {
         });
     };
 
+    const togglePin = (spaceId: string, conversationId: string) => {
+        setSpaces(prevSpaces => prevSpaces.map(s => {
+            if (s.id === spaceId) {
+                return {
+                    ...s,
+                    conversations: s.conversations.map(c =>
+                        c.id === conversationId ? { ...c, isPinned: !c.isPinned } : c
+                    )
+                };
+            }
+            return s;
+        }));
+    };
+
+    const renameChat = (spaceId: string, conversationId: string, newTitle: string) => {
+        setSpaces(prevSpaces => prevSpaces.map(s => {
+            if (s.id === spaceId) {
+                return {
+                    ...s,
+                    conversations: s.conversations.map(c =>
+                        c.id === conversationId ? { ...c, title: newTitle } : c
+                    )
+                };
+            }
+            return s;
+        }));
+    };
+
     return (
         <SpacesContext.Provider value={{
             spaces,
@@ -267,7 +301,9 @@ export function SpacesProvider({ children }: { children: ReactNode }) {
             addMessageToConversation,
             updateMessageContent,
             deleteConversation,
-            deleteSpace
+            deleteSpace,
+            togglePin,
+            renameChat
         }}>
             {children}
         </SpacesContext.Provider>
