@@ -176,10 +176,10 @@ export function Sidebar({ className }: SidebarProps) {
                                                 return new Date(lastMsgB).getTime() - new Date(lastMsgA).getTime();
                                             })
                                             .map((conversation) => (
-                                                <div key={conversation.id} className="group flex items-center gap-1">
+                                                <div key={conversation.id} className="group relative">
                                                     <Button
                                                         variant={activeSpace.activeConversationId === conversation.id ? "secondary" : "ghost"}
-                                                        className="flex-1 min-w-0 justify-start font-normal"
+                                                        className="w-full justify-start font-normal pr-9"
                                                         onClick={() => selectConversation(activeSpace.id, conversation.id)}
                                                     >
                                                         <div className="flex items-center w-full overflow-hidden">
@@ -191,61 +191,63 @@ export function Sidebar({ className }: SidebarProps) {
                                                             <span className="truncate">{conversation.title}</span>
                                                         </div>
                                                     </Button>
-                                                    <DropdownMenu>
-                                                        <DropdownMenuTrigger asChild>
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="icon"
-                                                                className="h-8 w-8 opacity-50 group-hover:opacity-100 transition-opacity"
-                                                                onClick={(e) => e.stopPropagation()}
-                                                            >
-                                                                <MoreVertical className="h-4 w-4" />
-                                                            </Button>
-                                                        </DropdownMenuTrigger>
-                                                        <DropdownMenuContent align="end">
-                                                            <DropdownMenuItem
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    togglePin(activeSpace.id, conversation.id);
-                                                                }}
-                                                            >
-                                                                {conversation.isPinned ? (
-                                                                    <>
-                                                                        <PinOff className="mr-2 h-4 w-4" />
-                                                                        Unpin
-                                                                    </>
-                                                                ) : (
-                                                                    <>
-                                                                        <Pin className="mr-2 h-4 w-4" />
-                                                                        Pin
-                                                                    </>
-                                                                )}
-                                                            </DropdownMenuItem>
-                                                            <DropdownMenuItem
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    setChatToRename({
-                                                                        spaceId: activeSpace.id,
-                                                                        chatId: conversation.id,
-                                                                        currentTitle: conversation.title
-                                                                    });
-                                                                }}
-                                                            >
-                                                                <Pencil className="mr-2 h-4 w-4" />
-                                                                Rename
-                                                            </DropdownMenuItem>
-                                                            <DropdownMenuItem
-                                                                className="text-destructive focus:text-destructive"
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    setChatToDelete({ spaceId: activeSpace.id, chatId: conversation.id });
-                                                                }}
-                                                            >
-                                                                <Trash2 className="mr-2 h-4 w-4" />
-                                                                Delete
-                                                            </DropdownMenuItem>
-                                                        </DropdownMenuContent>
-                                                    </DropdownMenu>
+                                                    <div className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        <DropdownMenu>
+                                                            <DropdownMenuTrigger asChild>
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    className="h-8 w-8"
+                                                                    onClick={(e) => e.stopPropagation()}
+                                                                >
+                                                                    <MoreVertical className="h-4 w-4" />
+                                                                </Button>
+                                                            </DropdownMenuTrigger>
+                                                            <DropdownMenuContent align="end">
+                                                                <DropdownMenuItem
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        togglePin(activeSpace.id, conversation.id);
+                                                                    }}
+                                                                >
+                                                                    {conversation.isPinned ? (
+                                                                        <>
+                                                                            <PinOff className="mr-2 h-4 w-4" />
+                                                                            Unpin
+                                                                        </>
+                                                                    ) : (
+                                                                        <>
+                                                                            <Pin className="mr-2 h-4 w-4" />
+                                                                            Pin
+                                                                        </>
+                                                                    )}
+                                                                </DropdownMenuItem>
+                                                                <DropdownMenuItem
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        setChatToRename({
+                                                                            spaceId: activeSpace.id,
+                                                                            chatId: conversation.id,
+                                                                            currentTitle: conversation.title
+                                                                        });
+                                                                    }}
+                                                                >
+                                                                    <Pencil className="mr-2 h-4 w-4" />
+                                                                    Rename
+                                                                </DropdownMenuItem>
+                                                                <DropdownMenuItem
+                                                                    className="text-destructive focus:text-destructive"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        setChatToDelete({ spaceId: activeSpace.id, chatId: conversation.id });
+                                                                    }}
+                                                                >
+                                                                    <Trash2 className="mr-2 h-4 w-4" />
+                                                                    Delete
+                                                                </DropdownMenuItem>
+                                                            </DropdownMenuContent>
+                                                        </DropdownMenu>
+                                                    </div>
                                                 </div>
                                             ))}
                                         {activeSpace.conversations.length === 0 && (
